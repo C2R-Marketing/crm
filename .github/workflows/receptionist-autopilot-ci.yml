@@ -6,6 +6,7 @@ on:
       - feat/receptionist-revenue-autopilot-v1
     paths:
       - "apps/agent/agent/sales/**"
+      - "apps/agent/agent/tools/sales_*.ts"
       - "apps/agent/test/sales/**"
       - "apps/agent/scripts/receptionist-autopilot-smoke.ts"
       - "apps/agent/agent/channels/crm.ts"
@@ -18,6 +19,7 @@ on:
   pull_request:
     paths:
       - "apps/agent/agent/sales/**"
+      - "apps/agent/agent/tools/sales_*.ts"
       - "apps/agent/test/sales/**"
       - "apps/agent/scripts/receptionist-autopilot-smoke.ts"
       - "apps/agent/agent/channels/crm.ts"
