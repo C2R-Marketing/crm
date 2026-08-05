@@ -8,7 +8,7 @@ on:
       - "apps/agent/agent/sales/**"
       - "apps/agent/agent/tools/sales_*.ts"
       - "apps/agent/test/sales/**"
-      - "apps/agent/scripts/receptionist-autopilot-smoke.ts"
+      - "apps/agent/scripts/receptionist-autopilot-*.ts"
       - "apps/agent/agent/channels/crm.ts"
       - "apps/agent/agent/instructions/task.ts"
       - "apps/agent/agent/lib/tasks.ts"
@@ -21,7 +21,7 @@ on:
       - "apps/agent/agent/sales/**"
       - "apps/agent/agent/tools/sales_*.ts"
       - "apps/agent/test/sales/**"
-      - "apps/agent/scripts/receptionist-autopilot-smoke.ts"
+      - "apps/agent/scripts/receptionist-autopilot-*.ts"
       - "apps/agent/agent/channels/crm.ts"
       - "apps/agent/agent/instructions/task.ts"
       - "apps/agent/agent/lib/tasks.ts"
@@ -76,11 +76,21 @@ jobs:
       - name: Apply database migrations to disposable Postgres
         run: cd packages/db && bun run db:deploy
 
-      - name: Run sales unit integration and synthetic proof tests
+      - name: Run sales product tests
         run: bun test apps/agent/test/sales
 
       - name: Run one-command synthetic sale proof
         run: bun apps/agent/scripts/receptionist-autopilot-smoke.ts
+
+      - name: Run one-command Gate A product trigger twice
+        run: |
+          bun apps/agent/scripts/receptionist-autopilot-gate-a.ts
+          bun apps/agent/scripts/receptionist-autopilot-gate-a.ts
+
+      - name: Prove Gate A trigger stayed idempotent
+        run: |
+          row="$(psql "$DATABASE_URL" -Atc "select count(*) || ':' || (select count(*) from \"agentTask\" where \"salesProspectId\"='synthetic-northstar-roofing-v1' and \"finishedAt\" is null) from \"salesProspect\" where id='synthetic-northstar-roofing-v1';")"
+          test "$row" = "1:1"
 
       - name: Type-check agent
         run: bun run --filter=agent check-types
