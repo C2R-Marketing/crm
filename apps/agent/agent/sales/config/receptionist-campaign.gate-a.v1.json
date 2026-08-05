@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "id": "receptionist-gate-a-v1",
+  "name": "Prospect-specific AI receptionist — Gate A synthetic campaign",
+  "offerId": "receptionist-demo-v1",
+  "objective": "Prove the autonomous evidence-to-pitch sales workflow end to end with zero real prospect contact before Gate B.",
+  "audience": {
+    "mode": "SYNTHETIC_ONLY",
+    "description": "Fictional local-service businesses using reserved .test domains and fixture-only contact data."
+  },
+  "allowedChannels": ["synthetic"],
+  "gateBEnabled": false,
+  "killSwitch": false,
+  "approvedClaimIds": [
+    "receptionist.demo.available",
+    "receptionist.lead.capture"
+  ],
+  "caps": {
+    "maxActionsPerProspect": 8,
+    "maxRetries": 1,
+    "maxTokensPerProspect": 5000,
+    "maxCostUsdPerProspect": 0
+  },
+  "stopCriteria": [
+    "unsupported product claim",
+    "missing provenance required by the selected channel",
+    "unknown consent for any non-synthetic channel",
+    "suppression or opt-out",
+    "kill switch",
+    "action/retry/token/cost cap",
+    "provider identity or cost cannot be attested",
+    "any external adapter selected while Gate B is locked"
+  ],
+  "gateBRequiredFor": [
+    "real email or message",
+    "real web chat or voice session",
+    "PSTN/SIP call",
+    "booking or checkout mutation",
+    "publishing a campaign",
+    "production deployment",
+    "credential mutation",
+    "paid inference, telephony, advertising, or other spend"
+  ],
+  "ownerGate": "Gate B requires explicit owner approval after reproducible QA/PRA evidence."
+}
