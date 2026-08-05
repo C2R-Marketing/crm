@@ -8,6 +8,11 @@ on:
       - "apps/agent/agent/sales/**"
       - "apps/agent/test/sales/**"
       - "apps/agent/scripts/receptionist-autopilot-smoke.ts"
+      - "apps/agent/agent/channels/crm.ts"
+      - "apps/agent/agent/instructions/task.ts"
+      - "apps/agent/agent/lib/tasks.ts"
+      - "apps/agent/agent/schedules/dispatch.ts"
+      - "packages/db/prisma/schema.prisma"
       - "packages/db/prisma/migrations/**"
       - ".github/workflows/receptionist-autopilot-ci.yml"
   pull_request:
@@ -15,6 +20,11 @@ on:
       - "apps/agent/agent/sales/**"
       - "apps/agent/test/sales/**"
       - "apps/agent/scripts/receptionist-autopilot-smoke.ts"
+      - "apps/agent/agent/channels/crm.ts"
+      - "apps/agent/agent/instructions/task.ts"
+      - "apps/agent/agent/lib/tasks.ts"
+      - "apps/agent/agent/schedules/dispatch.ts"
+      - "packages/db/prisma/schema.prisma"
       - "packages/db/prisma/migrations/**"
       - ".github/workflows/receptionist-autopilot-ci.yml"
 
