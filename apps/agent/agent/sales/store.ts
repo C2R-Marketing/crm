@@ -82,6 +82,47 @@ export async function getSalesProspect(id: string): Promise<{
   return rows[0] ?? null;
 }
 
+export type SalesSessionContext = {
+  prospectId: string;
+  campaignId: string;
+  campaignName: string;
+  gateBEnabled: boolean;
+  killSwitch: boolean;
+  contract: unknown;
+  contactId: string | null;
+  companyId: string | null;
+  provenance: unknown;
+  consentBasis: string;
+  suppressed: boolean;
+  optedOut: boolean;
+  currentStage: SalesStage;
+  nextActionAt: Date | null;
+};
+
+export async function getSalesSessionContext(prospectId: string): Promise<SalesSessionContext | null> {
+  const rows = await db.$queryRaw<SalesSessionContext[]>`
+    SELECT
+      p.id AS "prospectId",
+      p."campaignId" AS "campaignId",
+      c.name AS "campaignName",
+      c."gateBEnabled" AS "gateBEnabled",
+      c."killSwitch" AS "killSwitch",
+      c.contract,
+      p."contactId" AS "contactId",
+      p."companyId" AS "companyId",
+      p.provenance,
+      p."consentBasis" AS "consentBasis",
+      p.suppressed,
+      p."optedOut" AS "optedOut",
+      p."currentStage" AS "currentStage",
+      p."nextActionAt" AS "nextActionAt"
+    FROM "salesProspect" p
+    JOIN "salesCampaign" c ON c.id = p."campaignId"
+    WHERE p.id = ${prospectId}
+  `;
+  return rows[0] ?? null;
+}
+
 export async function updateSalesProspectStage(input: {
   id: string;
   stage: SalesStage;
