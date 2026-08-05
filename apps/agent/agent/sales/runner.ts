@@ -1,4 +1,4 @@
-import type { SalesAction, SalesChannelAdapter } from "./adapter";
+import type { SalesAction, SalesAdapterIdentity, SalesChannelAdapter } from "./adapter";
 import { validatePitchClaims } from "./claims";
 import { buildReceptionistDemoSpec } from "./demo";
 import { canDispatchExternalAction, evaluateEligibility } from "./policy";
@@ -13,6 +13,7 @@ import type {
 } from "./types";
 
 export interface SalesRunReceipt {
+  receiptVersion: 1;
   status: "READY_FOR_HANDOFF" | "FOLLOWUP_SCHEDULED" | "BLOCKED";
   reason: string;
   prospectId: string;
@@ -26,6 +27,8 @@ export interface SalesRunReceipt {
   evidenceIds: string[];
   gateBEnabled: boolean;
   killSwitch: boolean;
+  adapterIdentity: SalesAdapterIdentity;
+  budget: SalesBudget;
 }
 
 interface RunInput {
@@ -53,6 +56,7 @@ export async function runSalesProspect(input: RunInput): Promise<SalesRunReceipt
   const usedClaimIds = new Set<string>();
 
   const receipt = (status: SalesRunReceipt["status"], reason: string): SalesRunReceipt => ({
+    receiptVersion: 1,
     status,
     reason,
     prospectId: prospect.id,
@@ -66,6 +70,8 @@ export async function runSalesProspect(input: RunInput): Promise<SalesRunReceipt
     evidenceIds: [...new Set([...prospect.evidenceIds, ...facts.map((fact) => fact.evidenceId)])],
     gateBEnabled: campaign.gateBEnabled,
     killSwitch: campaign.killSwitch,
+    adapterIdentity: { ...adapter.identity },
+    budget: { ...input.budget },
   });
 
   if (campaign.killSwitch) return receipt("BLOCKED", "KILL_SWITCH");
