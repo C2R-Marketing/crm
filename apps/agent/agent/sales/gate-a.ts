@@ -52,6 +52,19 @@ export async function seedGateAReceptionistRun(input: GateASeedInput): Promise<G
   assertEvidence(input.observedFacts);
 
   const campaignId = campaignConfig.id;
+  const existingCampaign = await db.$queryRaw<Array<{ gateBEnabled: boolean; killSwitch: boolean }>>`
+    SELECT "gateBEnabled", "killSwitch" FROM "salesCampaign" WHERE id = ${campaignId}
+  `;
+  if (existingCampaign[0]?.killSwitch) throw new Error("Gate A campaign kill switch is active");
+  if (existingCampaign[0]?.gateBEnabled) throw new Error("Gate A seeder refuses a Gate B campaign");
+
+  const existingProspect = await db.$queryRaw<Array<{ suppressed: boolean; optedOut: boolean }>>`
+    SELECT suppressed, "optedOut" FROM "salesProspect" WHERE id = ${input.prospectId}
+  `;
+  if (existingProspect[0]?.suppressed || existingProspect[0]?.optedOut) {
+    throw new Error("Gate A prospect is suppressed or opted out");
+  }
+
   const contract = JSON.stringify({
     offerId: campaignConfig.offerId,
     allowedChannels: campaignConfig.allowedChannels,
@@ -76,12 +89,18 @@ export async function seedGateAReceptionistRun(input: GateASeedInput): Promise<G
       VALUES (${campaignId}, ${campaignConfig.name}, 'GATE_A', false, false, ${contract}::jsonb)
       ON CONFLICT (id) DO UPDATE SET
         name = EXCLUDED.name,
-        status = 'GATE_A',
-        "gateBEnabled" = false,
-        "killSwitch" = false,
+        status = CASE WHEN "salesCampaign".status = 'DRAFT' THEN 'GATE_A' ELSE "salesCampaign".status END,
         contract = EXCLUDED.contract,
         "updatedAt" = CURRENT_TIMESTAMP
+      WHERE "salesCampaign"."gateBEnabled" = false AND "salesCampaign"."killSwitch" = false
     `;
+
+    const campaignGuard = await tx.$queryRaw<Array<{ gateBEnabled: boolean; killSwitch: boolean }>>`
+      SELECT "gateBEnabled", "killSwitch" FROM "salesCampaign" WHERE id = ${campaignId} FOR UPDATE
+    `;
+    if (!campaignGuard[0] || campaignGuard[0].killSwitch || campaignGuard[0].gateBEnabled) {
+      throw new Error("Gate A campaign safety state changed during seed");
+    }
 
     await tx.$executeRaw`
       INSERT INTO "salesProspect" (
@@ -91,11 +110,16 @@ export async function seedGateAReceptionistRun(input: GateASeedInput): Promise<G
       ON CONFLICT (id) DO UPDATE SET
         "campaignId" = EXCLUDED."campaignId",
         provenance = EXCLUDED.provenance,
-        "consentBasis" = 'NOT_REQUIRED_SYNTHETIC',
-        suppressed = false,
-        "optedOut" = false,
         "updatedAt" = CURRENT_TIMESTAMP
+      WHERE "salesProspect".suppressed = false AND "salesProspect"."optedOut" = false
     `;
+
+    const prospectGuard = await tx.$queryRaw<Array<{ suppressed: boolean; optedOut: boolean }>>`
+      SELECT suppressed, "optedOut" FROM "salesProspect" WHERE id = ${input.prospectId} FOR UPDATE
+    `;
+    if (!prospectGuard[0] || prospectGuard[0].suppressed || prospectGuard[0].optedOut) {
+      throw new Error("Gate A prospect safety state changed during seed");
+    }
 
     const idempotencyKey = `${input.prospectId}:gate-a-deterministic-gates`;
     const evidenceIds = JSON.stringify(input.observedFacts.map((fact) => fact.evidenceId));
