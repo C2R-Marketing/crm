@@ -1,5 +1,6 @@
 import { afterAll, beforeEach, describe, expect, test } from "bun:test";
 import { db } from "@crm/db";
+import { claimDue } from "../../agent/lib/tasks";
 import {
   appendSalesReceipt,
   createSalesCampaign,
@@ -88,7 +89,7 @@ describe("durable sales store", () => {
     expect(Number(rows[0]?.count ?? 0n)).toBe(1);
   });
 
-  test("queues sales work in the existing AgentTask scheduler", async () => {
+  test("queues and leases sales work through the existing AgentTask scheduler with prospect identity intact", async () => {
     await createSalesCampaign({ id: campaignId, name: "Integration fixture", gateBEnabled: false, killSwitch: false, contract: {} });
     await createSalesProspect({
       id: prospectId,
@@ -113,5 +114,9 @@ describe("durable sales store", () => {
       SELECT id, "salesProspectId", kind FROM "agentTask" WHERE id = ${task.id}
     `;
     expect(rows[0]).toEqual({ id: task.id, salesProspectId: prospectId, kind: "sales:advance" });
+
+    const leased = await claimDue(1);
+    expect(leased).toHaveLength(1);
+    expect(leased[0]).toMatchObject({ id: task.id, salesProspectId: prospectId, kind: "sales:advance" });
   });
 });
