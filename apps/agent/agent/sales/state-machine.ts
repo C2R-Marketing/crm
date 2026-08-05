@@ -30,6 +30,7 @@ const transitions: Partial<Record<SalesStage, Partial<Record<SalesEvent, SalesSt
   },
   HANDLE_OBJECTION: { objection_handled: "CTA" },
   CTA: {
+    objection: "HANDLE_OBJECTION",
     cta_accepted: "BOOK_CHECKOUT_HANDOFF",
     cta_declined: "FOLLOW_UP",
     followup_due: "FOLLOW_UP",
