@@ -6,6 +6,7 @@ import {
   createSalesCampaign,
   createSalesProspect,
   getSalesProspect,
+  recordSalesTaskFailure,
   scheduleSalesTask,
 } from "../../agent/sales/store";
 
@@ -87,6 +88,42 @@ describe("durable sales store", () => {
 
     const rows = await db.$queryRaw<Array<{ count: bigint }>>`SELECT COUNT(*)::bigint AS count FROM "salesReceipt" WHERE "idempotencyKey" = ${input.idempotencyKey}`;
     expect(Number(rows[0]?.count ?? 0n)).toBe(1);
+  });
+
+  test("records scheduler failures idempotently without advancing sales stage", async () => {
+    await createSalesCampaign({ id: campaignId, name: "Integration fixture", gateBEnabled: false, killSwitch: false, contract: {} });
+    await createSalesProspect({
+      id: prospectId,
+      campaignId,
+      provenance: { source: "fixture" },
+      consentBasis: "NOT_REQUIRED_SYNTHETIC",
+      currentStage: "QUALIFY",
+      suppressed: false,
+      optedOut: false,
+    });
+
+    await recordSalesTaskFailure({
+      taskId: "sales-task-fixture",
+      prospectId,
+      attempt: 2,
+      reason: "session hand-off failed",
+    });
+    await recordSalesTaskFailure({
+      taskId: "sales-task-fixture",
+      prospectId,
+      attempt: 2,
+      reason: "session hand-off failed",
+    });
+
+    const prospect = await getSalesProspect(prospectId);
+    expect(prospect?.currentStage).toBe("QUALIFY");
+    const rows = await db.$queryRaw<Array<{ count: bigint; error: string | null }>>`
+      SELECT COUNT(*)::bigint AS count, MAX(error) AS error
+      FROM "salesReceipt"
+      WHERE "idempotencyKey" = ${"sales-task-fixture:dispatch:2"}
+    `;
+    expect(Number(rows[0]?.count ?? 0n)).toBe(1);
+    expect(rows[0]?.error).toBe("session hand-off failed");
   });
 
   test("queues and leases sales work through the existing AgentTask scheduler with prospect identity intact", async () => {
