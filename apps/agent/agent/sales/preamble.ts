@@ -67,7 +67,8 @@ export async function salesSessionPreamble(
     markdown: [
       ...header,
       ...boundaries,
-      "Do not invent prospect facts. Read durable CRM/product evidence first. Keep the turn bounded; if a deterministic gate blocks, report the exact blocker instead of exploring around it.",
+      "Required tool flow: call sales_state first. Then, if and only if the durable state and evidence support a legal next step, make exactly one sales_advance call for this task. sales_advance accepts a decision enum rather than free-form customer copy and writes the guarded state transition plus receipt atomically.",
+      "Do not invent prospect facts. Do not bypass sales_state or sales_advance with generic tools. Keep the turn bounded; if a deterministic gate blocks, report the exact blocker instead of exploring around it.",
     ].join("\n\n"),
     focus: { contactId: context.contactId, companyId: context.companyId },
   };
