@@ -79,3 +79,6 @@ jobs:
 
       - name: Type-check agent
         run: bun run --filter=agent check-types
+
+      - name: Compile the Eve agent and discover authored sales tools
+        run: bun run --filter=agent build
