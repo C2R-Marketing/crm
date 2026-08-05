@@ -8,26 +8,40 @@ on:
       - "apps/agent/agent/sales/**"
       - "apps/agent/test/sales/**"
       - "apps/agent/scripts/receptionist-autopilot-smoke.ts"
+      - "packages/db/prisma/migrations/**"
       - ".github/workflows/receptionist-autopilot-ci.yml"
   pull_request:
     paths:
       - "apps/agent/agent/sales/**"
       - "apps/agent/test/sales/**"
       - "apps/agent/scripts/receptionist-autopilot-smoke.ts"
+      - "packages/db/prisma/migrations/**"
       - ".github/workflows/receptionist-autopilot-ci.yml"
 
 permissions:
   contents: read
 
 env:
-  # Prisma generate requires a syntactically valid URL during @crm/db postinstall.
-  # This workflow never connects to it; sales-core tests are pure/synthetic.
-  DATABASE_URL: postgresql://crm:crm@127.0.0.1:5432/crm_ci
+  DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/crm_ci
 
 jobs:
   sales-core:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: crm_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d crm_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - name: Checkout exact revision
         uses: actions/checkout@v4
@@ -42,7 +56,10 @@ jobs:
       - name: Install locked dependencies
         run: bun install --frozen-lockfile
 
-      - name: Run sales unit and synthetic proof tests
+      - name: Apply database migrations to disposable Postgres
+        run: cd packages/db && bun run db:deploy
+
+      - name: Run sales unit integration and synthetic proof tests
         run: bun test apps/agent/test/sales
 
       - name: Run one-command synthetic sale proof
