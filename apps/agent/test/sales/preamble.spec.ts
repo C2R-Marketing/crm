@@ -49,6 +49,9 @@ describe("sales session preamble", () => {
     expect(preamble.markdown).toContain("Gate B: LOCKED");
     expect(preamble.markdown).toContain("No external contact");
     expect(preamble.markdown).toContain("NOT_REQUIRED_SYNTHETIC");
+    expect(preamble.markdown).toContain("sales_state");
+    expect(preamble.markdown).toContain("sales_advance");
+    expect(preamble.markdown).toContain("exactly one sales_advance call");
     expect(preamble.focus).toEqual({ contactId: null, companyId: null });
   });
 
