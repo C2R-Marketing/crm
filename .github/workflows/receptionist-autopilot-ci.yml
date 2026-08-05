@@ -1,0 +1,42 @@
+name: Receptionist Revenue Autopilot CI
+
+on:
+  push:
+    branches:
+      - feat/receptionist-revenue-autopilot-v1
+    paths:
+      - "apps/agent/agent/sales/**"
+      - "apps/agent/test/sales/**"
+      - ".github/workflows/receptionist-autopilot-ci.yml"
+  pull_request:
+    paths:
+      - "apps/agent/agent/sales/**"
+      - "apps/agent/test/sales/**"
+      - ".github/workflows/receptionist-autopilot-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  sales-core:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.12
+
+      - name: Install locked dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Run sales unit and synthetic proof tests
+        run: bun test apps/agent/test/sales
+
+      - name: Type-check agent
+        run: bun run --filter=agent check-types
