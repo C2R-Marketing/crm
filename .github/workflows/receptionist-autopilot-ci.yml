@@ -19,6 +19,11 @@ on:
 permissions:
   contents: read
 
+env:
+  # Prisma generate requires a syntactically valid URL during @crm/db postinstall.
+  # This workflow never connects to it; sales-core tests are pure/synthetic.
+  DATABASE_URL: postgresql://crm:crm@127.0.0.1:5432/crm_ci
+
 jobs:
   sales-core:
     runs-on: ubuntu-latest
