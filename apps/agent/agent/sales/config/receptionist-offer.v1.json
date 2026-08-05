@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "offerId": "receptionist-demo-v1",
+  "name": "Prospect-specific AI receptionist demo",
+  "claims": [
+    {
+      "id": "receptionist.demo.available",
+      "wording": "We can build a prospect-specific AI receptionist demo before you decide whether to buy.",
+      "evidenceRef": "product-spec:receptionist-demo-v1",
+      "limitations": [
+        "Demo behavior is based only on observed business facts supplied to the builder.",
+        "Production deployment, phone connectivity, pricing, and service commitments require a separately approved contract."
+      ],
+      "status": "APPROVED"
+    },
+    {
+      "id": "receptionist.lead.capture",
+      "wording": "The demo can show how an AI receptionist captures a caller's name, callback number, and request summary for follow-up.",
+      "evidenceRef": "product-code:apps/agent/agent/sales/demo.ts",
+      "limitations": [
+        "Gate A demonstrations are synthetic only.",
+        "No real phone call or customer contact is enabled before Gate B."
+      ],
+      "status": "APPROVED"
+    }
+  ],
+  "prohibitedClaims": [
+    "source.$500-per-day",
+    "source.$20000-roofing-job",
+    "guaranteed-revenue",
+    "guaranteed-conversion-rate"
+  ]
+}
