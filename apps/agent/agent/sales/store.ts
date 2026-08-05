@@ -177,16 +177,24 @@ export async function appendSalesReceipt(input: {
   return rows[0] ?? { id };
 }
 
+async function currentTaskAttempt(taskId: string): Promise<number> {
+  const rows = await db.$queryRaw<Array<{ attempts: number }>>`
+    SELECT attempts FROM "agentTask" WHERE id = ${taskId}
+  `;
+  return rows[0]?.attempts ?? 0;
+}
+
 export async function recordSalesTaskFailure(input: {
   taskId: string;
   prospectId: string;
-  attempt: number;
+  attempt?: number;
   reason: string;
 }): Promise<{ id: string } | null> {
   const context = await getSalesSessionContext(input.prospectId);
   if (!context) return null;
+  const attempt = input.attempt ?? (await currentTaskAttempt(input.taskId));
   return appendSalesReceipt({
-    idempotencyKey: `${input.taskId}:dispatch:${input.attempt}`,
+    idempotencyKey: `${input.taskId}:dispatch:${attempt}`,
     runId: input.taskId,
     campaignId: context.campaignId,
     prospectId: context.prospectId,
@@ -195,10 +203,35 @@ export async function recordSalesTaskFailure(input: {
     action: "agent-task-dispatch",
     evidenceIds: [],
     claimIds: [],
-    budget: { attempt: input.attempt },
+    budget: { attempt },
     externalAction: false,
     error: input.reason.slice(0, 500),
-    retryCount: Math.max(0, input.attempt - 1),
+    retryCount: Math.max(0, attempt - 1),
+  });
+}
+
+export async function recordSalesTaskCompletion(input: {
+  taskId: string;
+  prospectId: string;
+  outcome?: string;
+}): Promise<{ id: string } | null> {
+  const context = await getSalesSessionContext(input.prospectId);
+  if (!context) return null;
+  const attempt = await currentTaskAttempt(input.taskId);
+  return appendSalesReceipt({
+    idempotencyKey: `${input.taskId}:turn-complete`,
+    runId: input.taskId,
+    campaignId: context.campaignId,
+    prospectId: context.prospectId,
+    stageBefore: context.currentStage,
+    stageAfter: context.currentStage,
+    action: "agent-task-turn-complete",
+    evidenceIds: [],
+    claimIds: [],
+    budget: { attempt },
+    externalAction: false,
+    outcome: (input.outcome ?? "Eve turn completed").slice(0, 500),
+    retryCount: Math.max(0, attempt - 1),
   });
 }
 
