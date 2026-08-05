@@ -109,6 +109,32 @@ describe("durable Eve sales action boundary", () => {
     expect(tasks).toEqual([{ kind: "sales:advance", salesProspectId: prospectId }]);
   });
 
+  test("hard action cap blocks a ninth sales_advance mutation", async () => {
+    await seed("PITCH");
+    for (let i = 0; i < 8; i += 1) {
+      await db.$executeRaw`
+        INSERT INTO "salesReceipt" (
+          id, "idempotencyKey", "runId", "campaignId", "prospectId", "stageBefore", "stageAfter",
+          provider, model, tool, action, "evidenceIds", "claimIds", budget, "externalAction", "retryCount"
+        )
+        VALUES (
+          ${`cap-receipt-${i}`}, ${`cap-key-${i}`}, ${`cap-run-${i}`}, ${campaignId}, ${prospectId},
+          'PITCH', 'PITCH', 'eve-test', 'test-model', 'sales_advance', 'fixture-action', '[]'::jsonb, '[]'::jsonb,
+          '{}'::jsonb, false, 0
+        )
+      `;
+    }
+
+    const result = await executeSalesAgentDecision({
+      prospectId,
+      decision: "present_offer",
+      idempotencyKey: "session-cap:PITCH:present_offer",
+      identity,
+    });
+    expect(result).toMatchObject({ ok: false, reason: "ACTION_CAP" });
+    expect((await getSalesProspect(prospectId))?.currentStage).toBe("PITCH");
+  });
+
   test("kill switch blocks before durable mutation", async () => {
     await seed("PITCH", { killSwitch: true });
     const result = await executeSalesAgentDecision({
