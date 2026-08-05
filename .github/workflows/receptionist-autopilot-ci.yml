@@ -7,11 +7,13 @@ on:
     paths:
       - "apps/agent/agent/sales/**"
       - "apps/agent/test/sales/**"
+      - "apps/agent/scripts/receptionist-autopilot-smoke.ts"
       - ".github/workflows/receptionist-autopilot-ci.yml"
   pull_request:
     paths:
       - "apps/agent/agent/sales/**"
       - "apps/agent/test/sales/**"
+      - "apps/agent/scripts/receptionist-autopilot-smoke.ts"
       - ".github/workflows/receptionist-autopilot-ci.yml"
 
 permissions:
@@ -37,6 +39,9 @@ jobs:
 
       - name: Run sales unit and synthetic proof tests
         run: bun test apps/agent/test/sales
+
+      - name: Run one-command synthetic sale proof
+        run: bun apps/agent/scripts/receptionist-autopilot-smoke.ts
 
       - name: Type-check agent
         run: bun run --filter=agent check-types
