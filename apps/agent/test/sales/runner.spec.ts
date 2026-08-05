@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import type { BuyerTurn, SalesAction, SalesChannelAdapter } from "../../agent/sales/adapter";
 import { SyntheticSalesAdapter } from "../../agent/sales/synthetic-adapter";
 import { runSalesProspect } from "../../agent/sales/runner";
 import type { CampaignContract, ClaimRecord, ObservedFact, ProspectEnvelope, SalesBudget } from "../../agent/sales/types";
@@ -48,6 +49,23 @@ const facts: ObservedFact[] = [
 
 const budget: SalesBudget = { maxTokens: 5000, maxCostUsd: 0, tokensUsed: 0, costUsd: 0 };
 
+class ExternalProbeAdapter implements SalesChannelAdapter {
+  readonly external = true;
+  readonly outgoing: SalesAction[] = [];
+  private readonly turns: BuyerTurn[] = [{ kind: "accept", text: "yes" }];
+
+  async send(action: SalesAction) {
+    this.outgoing.push(action);
+  }
+  async receive() {
+    return this.turns.shift() ?? null;
+  }
+  async scheduleFollowup(action: SalesAction) {
+    this.outgoing.push(action);
+  }
+  async close() {}
+}
+
 describe("synthetic sales runner", () => {
   test("completes a two-objection synthetic sale with zero external actions", async () => {
     const adapter = new SyntheticSalesAdapter([
@@ -64,6 +82,21 @@ describe("synthetic sales runner", () => {
     expect(receipt.claimIds.every((id) => campaign.approvedClaimIds.includes(id))).toBe(true);
     expect(adapter.outgoing.every((action) => action.external === false)).toBe(true);
     expect(receipt.objectionsHandled).toBe(2);
+  });
+
+  test("Gate A cannot cross an external adapter boundary", async () => {
+    const adapter = new ExternalProbeAdapter();
+    const receipt = await runSalesProspect({
+      campaign: { ...campaign, allowedChannels: ["synthetic", "email"] },
+      prospect,
+      facts,
+      claims,
+      budget,
+      adapter,
+    });
+    expect(receipt.status).toBe("BLOCKED");
+    expect(receipt.reason).toBe("GATE_B_REQUIRED");
+    expect(adapter.outgoing).toHaveLength(0);
   });
 
   test("opt-out terminates before any pitch", async () => {
