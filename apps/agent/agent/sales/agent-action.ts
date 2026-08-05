@@ -51,6 +51,12 @@ function contractClaimIds(contract: unknown): string[] {
   return value.filter((item): item is string => typeof item === "string" && Boolean(item.trim()));
 }
 
+function contractMaxActions(contract: unknown): number {
+  if (!contract || typeof contract !== "object") return 0;
+  const value = (contract as { maxActionsPerProspect?: unknown }).maxActionsPerProspect;
+  return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : 0;
+}
+
 function applyEvents(stage: SalesStage, events: Parameters<typeof transitionSalesStage>[1][]): SalesStage | null {
   let current = stage;
   for (const event of events) {
@@ -187,6 +193,19 @@ export async function executeSalesAgentDecision(input: {
   if (context.suppressed) return { ...base, ok: false, reason: "SUPPRESSED", duplicate: false, campaignId: context.campaignId };
   if (context.optedOut) return { ...base, ok: false, reason: "OPTED_OUT", duplicate: false, campaignId: context.campaignId };
 
+  const maxActions = contractMaxActions(context.contract);
+  if (!maxActions) {
+    return { ...base, ok: false, reason: "ACTION_CAP_UNCONFIGURED", duplicate: false, campaignId: context.campaignId };
+  }
+  const actionCountRows = await db.$queryRaw<Array<{ count: bigint }>>`
+    SELECT COUNT(*)::bigint AS count
+    FROM "salesReceipt"
+    WHERE "prospectId" = ${input.prospectId} AND tool = 'sales_advance'
+  `;
+  if (Number(actionCountRows[0]?.count ?? 0n) >= maxActions) {
+    return { ...base, ok: false, reason: "ACTION_CAP", duplicate: false, campaignId: context.campaignId, stageBefore: context.currentStage };
+  }
+
   const approvedClaimIds = contractClaimIds(context.contract);
   const plan = buildPlan(context.currentStage, input.decision, approvedClaimIds);
   if (!plan) {
@@ -209,6 +228,15 @@ export async function executeSalesAgentDecision(input: {
     `;
     if (replay[0]) return { duplicate: true as const, replay: replay[0] };
 
+    const countRows = await tx.$queryRaw<Array<{ count: bigint }>>`
+      SELECT COUNT(*)::bigint AS count
+      FROM "salesReceipt"
+      WHERE "prospectId" = ${input.prospectId} AND tool = 'sales_advance'
+    `;
+    if (Number(countRows[0]?.count ?? 0n) >= maxActions) {
+      return { duplicate: false as const, blocked: true as const, reason: "ACTION_CAP" as const };
+    }
+
     const changed = await tx.$executeRaw`
       UPDATE "salesProspect" AS p
       SET "currentStage" = ${plan.stageAfter},
@@ -223,11 +251,11 @@ export async function executeSalesAgentDecision(input: {
           WHERE c.id = p."campaignId" AND c."killSwitch" = false
         )
     `;
-    if (changed !== 1) return { duplicate: false as const, blocked: true as const };
+    if (changed !== 1) return { duplicate: false as const, blocked: true as const, reason: "STATE_GUARD" as const };
 
     const receiptId = randomUUID();
     const claimIds = JSON.stringify(plan.claimIds);
-    const budget = JSON.stringify({ maxCostUsd: 0, externalAction: false, identityStatus: input.identity.identityStatus });
+    const budget = JSON.stringify({ maxActionsPerProspect: maxActions, maxCostUsd: 0, externalAction: false, identityStatus: input.identity.identityStatus });
     await tx.$executeRaw`
       INSERT INTO "salesReceipt" (
         id, "idempotencyKey", "runId", "campaignId", "prospectId", "stageBefore", "stageAfter",
@@ -280,6 +308,9 @@ export async function executeSalesAgentDecision(input: {
     };
   }
   if ("blocked" in result && result.blocked) {
+    if ("reason" in result && result.reason === "ACTION_CAP") {
+      return { ...base, ok: false, reason: "ACTION_CAP", duplicate: false, campaignId: context.campaignId, stageBefore: context.currentStage };
+    }
     const latest = await getSalesSessionContext(input.prospectId);
     const reason = latest?.killSwitch ? "KILL_SWITCH" : latest?.suppressed ? "SUPPRESSED" : latest?.optedOut ? "OPTED_OUT" : "STALE_STATE";
     return { ...base, ok: false, reason, duplicate: false, campaignId: context.campaignId, stageBefore: context.currentStage };
