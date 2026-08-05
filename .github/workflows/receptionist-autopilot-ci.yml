@@ -5,6 +5,7 @@ on:
     branches:
       - feat/receptionist-revenue-autopilot-v1
     paths:
+      - "apps/agent/package.json"
       - "apps/agent/agent/sales/**"
       - "apps/agent/agent/tools/sales_*.ts"
       - "apps/agent/test/sales/**"
@@ -19,6 +20,7 @@ on:
       - ".github/workflows/receptionist-autopilot-ci.yml"
   pull_request:
     paths:
+      - "apps/agent/package.json"
       - "apps/agent/agent/sales/**"
       - "apps/agent/agent/tools/sales_*.ts"
       - "apps/agent/test/sales/**"
@@ -81,16 +83,16 @@ jobs:
       - name: Run sales product tests
         run: bun test apps/agent/test/sales
 
-      - name: Run one-command synthetic sale proof
-        run: bun apps/agent/scripts/receptionist-autopilot-smoke.ts
+      - name: Run packaged synthetic sale proof
+        run: bun run --filter=agent receptionist:sales-proof
 
-      - name: Run one-command callable receptionist demo proof
-        run: bun apps/agent/scripts/receptionist-demo-smoke.ts
+      - name: Run packaged callable receptionist demo proof
+        run: bun run --filter=agent receptionist:demo
 
-      - name: Run one-command Gate A product trigger twice
+      - name: Run packaged Gate A product trigger twice
         run: |
-          bun apps/agent/scripts/receptionist-autopilot-gate-a.ts
-          bun apps/agent/scripts/receptionist-autopilot-gate-a.ts
+          bun run --filter=agent receptionist:gate-a
+          bun run --filter=agent receptionist:gate-a
 
       - name: Prove Gate A trigger stayed idempotent
         run: |
