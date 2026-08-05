@@ -11,6 +11,13 @@ async function cleanup() {
   await db.$executeRaw`DELETE FROM "salesCampaign" WHERE id = 'receptionist-gate-a-v1'`;
 }
 
+const fixture = {
+  prospectId,
+  businessName: "Northstar Roofing.test",
+  website: "https://northstar-roofing.test",
+  observedFacts: [{ field: "service", value: "Roof repair", evidenceId: "fixture:service" }],
+};
+
 beforeEach(cleanup);
 afterAll(async () => {
   await cleanup();
@@ -19,24 +26,15 @@ afterAll(async () => {
 
 describe("Gate A receptionist product trigger", () => {
   test("seeds one synthetic campaign/prospect/task idempotently", async () => {
-    const first = await seedGateAReceptionistRun({
-      prospectId,
-      businessName: "Northstar Roofing.test",
-      website: "https://northstar-roofing.test",
+    const input = {
+      ...fixture,
       observedFacts: [
         { field: "service", value: "Roof repair", evidenceId: "fixture:roof-repair" },
         { field: "hours", value: "Mon-Fri 8am-5pm", evidenceId: "fixture:hours" },
       ],
-    });
-    const second = await seedGateAReceptionistRun({
-      prospectId,
-      businessName: "Northstar Roofing.test",
-      website: "https://northstar-roofing.test",
-      observedFacts: [
-        { field: "service", value: "Roof repair", evidenceId: "fixture:roof-repair" },
-        { field: "hours", value: "Mon-Fri 8am-5pm", evidenceId: "fixture:hours" },
-      ],
-    });
+    };
+    const first = await seedGateAReceptionistRun(input);
+    const second = await seedGateAReceptionistRun(input);
 
     expect(first).toMatchObject({ campaignId: "receptionist-gate-a-v1", prospectId, gateBEnabled: false, maxCostUsd: 0 });
     expect(second.taskId).toBe(first.taskId);
@@ -53,22 +51,10 @@ describe("Gate A receptionist product trigger", () => {
   });
 
   test("never clears an existing kill switch", async () => {
-    await seedGateAReceptionistRun({
-      prospectId,
-      businessName: "Northstar Roofing.test",
-      website: "https://northstar-roofing.test",
-      observedFacts: [{ field: "service", value: "Roof repair", evidenceId: "fixture:service" }],
-    });
+    await seedGateAReceptionistRun(fixture);
     await db.$executeRaw`UPDATE "salesCampaign" SET "killSwitch" = true WHERE id = 'receptionist-gate-a-v1'`;
 
-    await expect(
-      seedGateAReceptionistRun({
-        prospectId,
-        businessName: "Northstar Roofing.test",
-        website: "https://northstar-roofing.test",
-        observedFacts: [{ field: "service", value: "Roof repair", evidenceId: "fixture:service" }],
-      }),
-    ).rejects.toThrow("Gate A campaign kill switch is active");
+    await expect(seedGateAReceptionistRun(fixture)).rejects.toThrow("Gate A campaign kill switch is active");
 
     const rows = await db.$queryRaw<Array<{ killSwitch: boolean }>>`
       SELECT "killSwitch" FROM "salesCampaign" WHERE id = 'receptionist-gate-a-v1'
@@ -77,43 +63,33 @@ describe("Gate A receptionist product trigger", () => {
   });
 
   test("refuses to mutate a campaign that has already crossed Gate B", async () => {
-    await seedGateAReceptionistRun({
-      prospectId,
-      businessName: "Northstar Roofing.test",
-      website: "https://northstar-roofing.test",
-      observedFacts: [{ field: "service", value: "Roof repair", evidenceId: "fixture:service" }],
-    });
+    await seedGateAReceptionistRun(fixture);
     await db.$executeRaw`UPDATE "salesCampaign" SET "gateBEnabled" = true WHERE id = 'receptionist-gate-a-v1'`;
 
-    await expect(
-      seedGateAReceptionistRun({
-        prospectId,
-        businessName: "Northstar Roofing.test",
-        website: "https://northstar-roofing.test",
-        observedFacts: [{ field: "service", value: "Roof repair", evidenceId: "fixture:service" }],
-      }),
-    ).rejects.toThrow("Gate A seeder refuses a Gate B campaign");
+    await expect(seedGateAReceptionistRun(fixture)).rejects.toThrow("Gate A seeder refuses a Gate B campaign");
+  });
+
+  test("never clears prospect suppression or opt-out state", async () => {
+    await seedGateAReceptionistRun(fixture);
+    await db.$executeRaw`UPDATE "salesProspect" SET suppressed = true, "optedOut" = true WHERE id = ${prospectId}`;
+
+    await expect(seedGateAReceptionistRun(fixture)).rejects.toThrow("Gate A prospect is suppressed or opted out");
+
+    const rows = await db.$queryRaw<Array<{ suppressed: boolean; optedOut: boolean }>>`
+      SELECT suppressed, "optedOut" FROM "salesProspect" WHERE id = ${prospectId}
+    `;
+    expect(rows[0]).toEqual({ suppressed: true, optedOut: true });
   });
 
   test("refuses a non-.test website so Gate A cannot accidentally seed a real prospect", async () => {
     await expect(
-      seedGateAReceptionistRun({
-        prospectId,
-        businessName: "Real Roofing",
-        website: "https://example.com",
-        observedFacts: [{ field: "service", value: "Roof repair", evidenceId: "fixture:service" }],
-      }),
+      seedGateAReceptionistRun({ ...fixture, businessName: "Real Roofing", website: "https://example.com" }),
     ).rejects.toThrow("Gate A requires a reserved .test synthetic website");
   });
 
   test("requires evidence-backed observed facts", async () => {
     await expect(
-      seedGateAReceptionistRun({
-        prospectId,
-        businessName: "Northstar Roofing.test",
-        website: "https://northstar-roofing.test",
-        observedFacts: [{ field: "service", value: "Roof repair", evidenceId: "" }],
-      }),
+      seedGateAReceptionistRun({ ...fixture, observedFacts: [{ field: "service", value: "Roof repair", evidenceId: "" }] }),
     ).rejects.toThrow("every observed fact requires an evidenceId");
   });
 });
