@@ -51,6 +51,12 @@ const budget: SalesBudget = { maxTokens: 5000, maxCostUsd: 0, tokensUsed: 0, cos
 
 class ExternalProbeAdapter implements SalesChannelAdapter {
   readonly external = true;
+  readonly identity = {
+    provider: "external-probe",
+    model: "none",
+    tool: "ExternalProbeAdapter",
+    identityStatus: "VERIFIED" as const,
+  };
   readonly outgoing: SalesAction[] = [];
   private readonly turns: BuyerTurn[] = [{ kind: "accept", text: "yes" }];
 
