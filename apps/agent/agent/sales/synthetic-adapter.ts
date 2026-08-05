@@ -2,6 +2,12 @@ import type { BuyerTurn, SalesAction, SalesChannelAdapter } from "./adapter";
 
 export class SyntheticSalesAdapter implements SalesChannelAdapter {
   readonly external = false;
+  readonly identity = {
+    provider: "synthetic",
+    model: "deterministic-script",
+    tool: "SyntheticSalesAdapter",
+    identityStatus: "VERIFIED" as const,
+  };
   readonly outgoing: SalesAction[] = [];
   readonly followups: SalesAction[] = [];
   private readonly turns: BuyerTurn[];
