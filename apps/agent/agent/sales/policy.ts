@@ -2,6 +2,8 @@ import type { CampaignContract, ProspectEnvelope, SalesBudget } from "./types";
 
 export type EligibilityReason =
   | "ELIGIBLE"
+  | "MALFORMED_PROSPECT"
+  | "MISSING_PROVENANCE"
   | "SUPPRESSED"
   | "OPTED_OUT"
   | "CHANNEL_NOT_ALLOWED"
@@ -11,6 +13,12 @@ export function evaluateEligibility(
   prospect: ProspectEnvelope,
   campaign: CampaignContract,
 ): { eligible: boolean; reason: EligibilityReason } {
+  if (!prospect.id?.trim() || !prospect.companyName?.trim()) {
+    return { eligible: false, reason: "MALFORMED_PROSPECT" };
+  }
+  if (!prospect.evidenceIds?.some((evidenceId) => evidenceId.trim())) {
+    return { eligible: false, reason: "MISSING_PROVENANCE" };
+  }
   if (prospect.suppressed) return { eligible: false, reason: "SUPPRESSED" };
   if (prospect.optedOut) return { eligible: false, reason: "OPTED_OUT" };
   if (!campaign.allowedChannels.includes(prospect.channel)) {
