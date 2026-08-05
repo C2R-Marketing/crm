@@ -84,6 +84,31 @@ describe("synthetic sales runner", () => {
     expect(receipt.objectionsHandled).toBe(2);
   });
 
+  test("declined CTA runs the bounded follow-up path through outcome capture", async () => {
+    const adapter = new SyntheticSalesAdapter([{ kind: "decline", text: "Not today." }]);
+    const receipt = await runSalesProspect({ campaign, prospect, facts, claims, budget, adapter });
+    expect(receipt.status).toBe("FOLLOWUP_SCHEDULED");
+    expect(receipt.finalStage).toBe("EVALUATE_LEARN");
+    expect(adapter.followups).toHaveLength(1);
+    expect(adapter.followups[0]?.external).toBe(false);
+    expect(receipt.externalActions).toBe(0);
+  });
+
+  test("exhausted budget blocks before any pitch action", async () => {
+    const adapter = new SyntheticSalesAdapter([{ kind: "accept", text: "Yes" }]);
+    const receipt = await runSalesProspect({
+      campaign,
+      prospect,
+      facts,
+      claims,
+      budget: { ...budget, tokensUsed: budget.maxTokens + 1 },
+      adapter,
+    });
+    expect(receipt.status).toBe("BLOCKED");
+    expect(receipt.reason).toBe("BUDGET_EXHAUSTED");
+    expect(adapter.outgoing).toHaveLength(0);
+  });
+
   test("Gate A cannot cross an external adapter boundary", async () => {
     const adapter = new ExternalProbeAdapter();
     const receipt = await runSalesProspect({
