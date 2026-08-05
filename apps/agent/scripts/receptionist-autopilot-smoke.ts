@@ -6,18 +6,32 @@ import { runSalesProspect } from "../agent/sales/runner";
 import type { CampaignContract, ClaimRecord, ObservedFact, ProspectEnvelope, SalesBudget } from "../agent/sales/types";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const offerPath = resolve(here, "../agent/sales/config/receptionist-offer.v1.json");
-const offer = JSON.parse(readFileSync(offerPath, "utf8")) as { claims: ClaimRecord[] };
+const configDir = resolve(here, "../agent/sales/config");
+const offer = JSON.parse(readFileSync(resolve(configDir, "receptionist-offer.v1.json"), "utf8")) as { claims: ClaimRecord[] };
+const campaignConfig = JSON.parse(readFileSync(resolve(configDir, "receptionist-campaign.gate-a.v1.json"), "utf8")) as {
+  id: string;
+  name: string;
+  allowedChannels: CampaignContract["allowedChannels"];
+  gateBEnabled: boolean;
+  killSwitch: boolean;
+  approvedClaimIds: string[];
+  caps: {
+    maxActionsPerProspect: number;
+    maxRetries: number;
+    maxTokensPerProspect: number;
+    maxCostUsdPerProspect: number;
+  };
+};
 
 const campaign: CampaignContract = {
-  id: "synthetic-receptionist-campaign-v1",
-  name: "Gate A synthetic receptionist sale",
-  allowedChannels: ["synthetic"],
-  gateBEnabled: false,
-  killSwitch: false,
-  approvedClaimIds: offer.claims.map((claim) => claim.id),
-  maxActionsPerProspect: 8,
-  maxRetries: 1,
+  id: campaignConfig.id,
+  name: campaignConfig.name,
+  allowedChannels: campaignConfig.allowedChannels,
+  gateBEnabled: campaignConfig.gateBEnabled,
+  killSwitch: campaignConfig.killSwitch,
+  approvedClaimIds: campaignConfig.approvedClaimIds,
+  maxActionsPerProspect: campaignConfig.caps.maxActionsPerProspect,
+  maxRetries: campaignConfig.caps.maxRetries,
 };
 
 const prospect: ProspectEnvelope = {
@@ -38,8 +52,8 @@ const facts: ObservedFact[] = [
 ];
 
 const budget: SalesBudget = {
-  maxTokens: 5_000,
-  maxCostUsd: 0,
+  maxTokens: campaignConfig.caps.maxTokensPerProspect,
+  maxCostUsd: campaignConfig.caps.maxCostUsdPerProspect,
   tokensUsed: 0,
   costUsd: 0,
 };
@@ -53,8 +67,9 @@ const adapter = new SyntheticSalesAdapter([
 const receipt = await runSalesProspect({ campaign, prospect, facts, claims: offer.claims, budget, adapter });
 
 const proof = {
-  proofVersion: 1,
+  proofVersion: 2,
   fixture: prospect.id,
+  campaignContract: campaignConfig.id,
   receipt,
   outgoing: adapter.outgoing.map((action) => ({ kind: action.kind, claimIds: action.claimIds, external: action.external })),
   followups: adapter.followups.map((action) => ({ kind: action.kind, claimIds: action.claimIds, external: action.external })),
@@ -64,7 +79,10 @@ const proof = {
     zeroExternalActions: receipt.externalActions === 0 && adapter.outgoing.every((action) => !action.external),
     twoObjectionsHandled: receipt.objectionsHandled === 2,
     gateBLocked: receipt.gateBEnabled === false,
-    zeroPaidBudget: budget.maxCostUsd === 0,
+    zeroPaidBudget: receipt.budget.maxCostUsd === 0,
+    identityAttested: receipt.adapterIdentity.identityStatus === "VERIFIED",
+    exactSyntheticProvider: receipt.adapterIdentity.provider === "synthetic" && receipt.adapterIdentity.model === "deterministic-script",
+    claimsPinnedToCampaign: receipt.claimIds.every((claimId) => campaign.approvedClaimIds.includes(claimId)),
   },
 };
 
