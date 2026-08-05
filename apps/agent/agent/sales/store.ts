@@ -177,6 +177,31 @@ export async function appendSalesReceipt(input: {
   return rows[0] ?? { id };
 }
 
+export async function recordSalesTaskFailure(input: {
+  taskId: string;
+  prospectId: string;
+  attempt: number;
+  reason: string;
+}): Promise<{ id: string } | null> {
+  const context = await getSalesSessionContext(input.prospectId);
+  if (!context) return null;
+  return appendSalesReceipt({
+    idempotencyKey: `${input.taskId}:dispatch:${input.attempt}`,
+    runId: input.taskId,
+    campaignId: context.campaignId,
+    prospectId: context.prospectId,
+    stageBefore: context.currentStage,
+    stageAfter: context.currentStage,
+    action: "agent-task-dispatch",
+    evidenceIds: [],
+    claimIds: [],
+    budget: { attempt: input.attempt },
+    externalAction: false,
+    error: input.reason.slice(0, 500),
+    retryCount: Math.max(0, input.attempt - 1),
+  });
+}
+
 export async function scheduleSalesTask(input: {
   salesProspectId: string;
   kind: string;
