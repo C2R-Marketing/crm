@@ -9,6 +9,7 @@ on:
       - "apps/agent/agent/tools/sales_*.ts"
       - "apps/agent/test/sales/**"
       - "apps/agent/scripts/receptionist-autopilot-*.ts"
+      - "apps/agent/scripts/receptionist-demo-smoke.ts"
       - "apps/agent/agent/channels/crm.ts"
       - "apps/agent/agent/instructions/task.ts"
       - "apps/agent/agent/lib/tasks.ts"
@@ -22,6 +23,7 @@ on:
       - "apps/agent/agent/tools/sales_*.ts"
       - "apps/agent/test/sales/**"
       - "apps/agent/scripts/receptionist-autopilot-*.ts"
+      - "apps/agent/scripts/receptionist-demo-smoke.ts"
       - "apps/agent/agent/channels/crm.ts"
       - "apps/agent/agent/instructions/task.ts"
       - "apps/agent/agent/lib/tasks.ts"
@@ -81,6 +83,9 @@ jobs:
 
       - name: Run one-command synthetic sale proof
         run: bun apps/agent/scripts/receptionist-autopilot-smoke.ts
+
+      - name: Run one-command callable receptionist demo proof
+        run: bun apps/agent/scripts/receptionist-demo-smoke.ts
 
       - name: Run one-command Gate A product trigger twice
         run: |
