@@ -2,20 +2,7 @@ import { EnrichmentStatus } from "@crm/db";
 import { defineChannel } from "eve/channels";
 import { settle } from "../lib/enrichment";
 import { completeTask, taskSubject } from "../lib/tasks";
-
-/**
- * The CRM itself, as a place work arrives from.
- *
- * The dispatcher needs a channel to hand a task to, and the built-in HTTP
- * channel is not one: it answers requests, it has no `receive` hook, and there
- * is nothing to deliver a reply *to*. This is the other shape — a channel whose
- * whole job is to start a durable session and let the tools do the writing.
- *
- * There is deliberately no delivery. A run that identifies somebody has already
- * succeeded by the time it would have something to say, because success is a
- * fact on a record rather than a message to a person. If this ever needs to
- * tell somebody something, the timeline is where it goes.
- */
+import { recordSalesTaskCompletion, recordSalesTaskFailure } from "../sales/store";
 
 /** The token format this channel owns. eve namespaces it by file stem. */
 function taskToken(taskId: string): string {
@@ -30,33 +17,29 @@ function taskFromToken(token: string | undefined): string | null {
 }
 
 export default defineChannel({
-	// No inbound HTTP surface. Work reaches this channel by hand-off from the
-	// dispatcher, not by request — the API queues a row, it does not call us.
 	routes: [],
 
-	/**
-	 * A turn ending is what retires the row.
-	 *
-	 * The dispatcher cannot do it: `receive` returns a `Session` the moment the
-	 * message is accepted, so awaiting it says the work *started*, never that it
-	 * finished. Completing there would retire rows before the research ran; not
-	 * completing there — which is what the code did — meant nothing retired them
-	 * at all, the lease expired, and the row was dispatched again ten minutes
-	 * later, forever, resuming the same session and paying for another turn.
-	 *
-	 * `session.waiting` is the boundary that actually means "this turn is done
-	 * and the session is ready for the next message", so it is the one that
-	 * closes the task.
-	 */
 	events: {
 		async "session.waiting"(_data, channel) {
 			const taskId = taskFromToken(channel.continuationToken);
 			if (!taskId) return;
 
 			const subject = await completeTask(taskId, "ran");
-			// Null means somebody already closed it — a later turn on the same
-			// thread, or the retirement sweep. Not ours to settle.
-			if (subject) await settle(subject, EnrichmentStatus.COMPLETE);
+			if (!subject) return;
+
+			// Sales has its own durable state and receipts. Never project a sales
+			// task onto a contact/company enrichment status just because both share
+			// the same AgentTask scheduler.
+			if (subject.kind.startsWith("sales:") && subject.salesProspectId) {
+				await recordSalesTaskCompletion({
+					taskId,
+					prospectId: subject.salesProspectId,
+					outcome: "Eve sales task turn completed.",
+				});
+				return;
+			}
+
+			await settle(subject, EnrichmentStatus.COMPLETE);
 		},
 
 		async "turn.failed"(data, channel) {
@@ -66,32 +49,33 @@ export default defineChannel({
 			const reason =
 				typeof data === "object" && data && "error" in data
 					? String((data as { error: unknown }).error)
-					: "The research turn failed.";
+					: "The agent turn failed.";
 
-			// The row is deliberately *not* closed. A failed turn is worth another
-			// go, and leaving it open lets the lease expire and the attempt cap
-			// decide when to stop — the same path a crashed run takes. Only the
-			// record is updated, so the sheet stops claiming somebody is working
-			// on it in the meantime; the next claim puts it back to RUNNING.
 			const subject = await taskSubject(taskId);
-			if (subject) await settle(subject, EnrichmentStatus.FAILED, reason);
+			if (!subject) return;
+
+			if (subject.kind.startsWith("sales:") && subject.salesProspectId) {
+				await recordSalesTaskFailure({
+					taskId,
+					prospectId: subject.salesProspectId,
+					reason,
+				});
+				return;
+			}
+
+			// Enrichment rows deliberately remain open for the bounded retry path.
+			await settle(subject, EnrichmentStatus.FAILED, reason);
 		},
 	},
 
 	async receive(input, { send }) {
-		const taskId =
-			typeof input.target?.taskId === "string" ? input.target.taskId : null;
+		const taskId = typeof input.target?.taskId === "string" ? input.target.taskId : null;
 
-		// The token is the task, which gives retries the behaviour you want for
-		// free: a lease that expired mid-run is re-dispatched and *continues* the
-		// same durable session rather than starting the research over. A task
-		// scheduled fortnightly gets a new id each time, so two runs a fortnight
-		// apart correctly share nothing.
+		// The token is the task, so a lease retry resumes the same durable
+		// session rather than paying for a fresh context and repeating discovery.
 		return send(input.message, {
 			auth: input.auth,
-			continuationToken: taskId
-				? taskToken(taskId)
-				: `crm:adhoc:${crypto.randomUUID()}`,
+			continuationToken: taskId ? taskToken(taskId) : `crm:adhoc:${crypto.randomUUID()}`,
 		});
 	},
 });
