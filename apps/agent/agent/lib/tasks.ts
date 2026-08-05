@@ -13,17 +13,21 @@ export type LeasedTask = {
 	id: string;
 	contactId: string | null;
 	companyId: string | null;
+	/** Present only for `sales:*` work. Added by the revenue-autopilot migration. */
+	salesProspectId: string | null;
 	kind: string;
 	reason: string;
 	budget: number;
 	attempts: number;
 };
 
-/** The subject of a row, which is what an enrichment status hangs off. */
+/** The subject of a row, which is what status/audit handling hangs off. */
 export type TaskSubject = {
 	id: string;
 	contactId: string | null;
 	companyId: string | null;
+	/** Optional because legacy Prisma reads do not need the sales relation. */
+	salesProspectId?: string | null;
 	kind: string;
 };
 
@@ -75,7 +79,7 @@ export async function claimDue(limit: number): Promise<LeasedTask[]> {
 			FOR UPDATE SKIP LOCKED
 		) AS due
 		WHERE t.id = due.id
-		RETURNING t.id, t."contactId", t."companyId", t.kind, t.reason, t.budget, t.attempts;
+		RETURNING t.id, t."contactId", t."companyId", t."salesProspectId", t.kind, t.reason, t.budget, t.attempts;
 	`;
 }
 
@@ -96,7 +100,7 @@ export async function retireExhausted(): Promise<TaskSubject[]> {
 		WHERE t."finishedAt" IS NULL
 			AND t."attempts" >= ${MAX_ATTEMPTS}
 			AND (t."leasedUntil" IS NULL OR t."leasedUntil" < ${now})
-		RETURNING t.id, t."contactId", t."companyId", t.kind;
+		RETURNING t.id, t."contactId", t."companyId", t."salesProspectId", t.kind;
 	`;
 }
 
