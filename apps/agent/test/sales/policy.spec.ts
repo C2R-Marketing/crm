@@ -32,6 +32,13 @@ describe("sales policy", () => {
     });
   });
 
+  test("malformed or provenance-free prospects fail closed", () => {
+    expect(evaluateEligibility({ ...prospect, id: "" }, campaign).reason).toBe("MALFORMED_PROSPECT");
+    expect(evaluateEligibility({ ...prospect, companyName: "   " }, campaign).reason).toBe("MALFORMED_PROSPECT");
+    expect(evaluateEligibility({ ...prospect, evidenceIds: [] }, campaign).reason).toBe("MISSING_PROVENANCE");
+    expect(evaluateEligibility({ ...prospect, evidenceIds: [" "] }, campaign).reason).toBe("MISSING_PROVENANCE");
+  });
+
   test("suppression and opt-out fail closed", () => {
     expect(evaluateEligibility({ ...prospect, suppressed: true }, campaign).reason).toBe("SUPPRESSED");
     expect(evaluateEligibility({ ...prospect, optedOut: true }, campaign).reason).toBe("OPTED_OUT");
