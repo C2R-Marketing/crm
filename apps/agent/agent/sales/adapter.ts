@@ -11,8 +11,16 @@ export interface SalesAction {
   external: boolean;
 }
 
+export interface SalesAdapterIdentity {
+  provider: string;
+  model: string;
+  tool: string;
+  identityStatus: "VERIFIED" | "UNVERIFIED";
+}
+
 export interface SalesChannelAdapter {
   readonly external: boolean;
+  readonly identity: SalesAdapterIdentity;
   send(action: SalesAction): Promise<void>;
   receive(): Promise<BuyerTurn | null>;
   scheduleFollowup(action: SalesAction): Promise<void>;
