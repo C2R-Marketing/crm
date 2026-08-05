@@ -52,6 +52,49 @@ describe("Gate A receptionist product trigger", () => {
     expect(Number(counts[0]?.tasks ?? 0n)).toBe(1);
   });
 
+  test("never clears an existing kill switch", async () => {
+    await seedGateAReceptionistRun({
+      prospectId,
+      businessName: "Northstar Roofing.test",
+      website: "https://northstar-roofing.test",
+      observedFacts: [{ field: "service", value: "Roof repair", evidenceId: "fixture:service" }],
+    });
+    await db.$executeRaw`UPDATE "salesCampaign" SET "killSwitch" = true WHERE id = 'receptionist-gate-a-v1'`;
+
+    await expect(
+      seedGateAReceptionistRun({
+        prospectId,
+        businessName: "Northstar Roofing.test",
+        website: "https://northstar-roofing.test",
+        observedFacts: [{ field: "service", value: "Roof repair", evidenceId: "fixture:service" }],
+      }),
+    ).rejects.toThrow("Gate A campaign kill switch is active");
+
+    const rows = await db.$queryRaw<Array<{ killSwitch: boolean }>>`
+      SELECT "killSwitch" FROM "salesCampaign" WHERE id = 'receptionist-gate-a-v1'
+    `;
+    expect(rows[0]?.killSwitch).toBe(true);
+  });
+
+  test("refuses to mutate a campaign that has already crossed Gate B", async () => {
+    await seedGateAReceptionistRun({
+      prospectId,
+      businessName: "Northstar Roofing.test",
+      website: "https://northstar-roofing.test",
+      observedFacts: [{ field: "service", value: "Roof repair", evidenceId: "fixture:service" }],
+    });
+    await db.$executeRaw`UPDATE "salesCampaign" SET "gateBEnabled" = true WHERE id = 'receptionist-gate-a-v1'`;
+
+    await expect(
+      seedGateAReceptionistRun({
+        prospectId,
+        businessName: "Northstar Roofing.test",
+        website: "https://northstar-roofing.test",
+        observedFacts: [{ field: "service", value: "Roof repair", evidenceId: "fixture:service" }],
+      }),
+    ).rejects.toThrow("Gate A seeder refuses a Gate B campaign");
+  });
+
   test("refuses a non-.test website so Gate A cannot accidentally seed a real prospect", async () => {
     await expect(
       seedGateAReceptionistRun({
