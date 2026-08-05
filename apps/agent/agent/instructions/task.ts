@@ -1,24 +1,18 @@
 import { defineDynamic, defineInstructions } from "eve/instructions";
 import { focusOn, setBudget } from "../lib/focus";
 import { sessionPreamble } from "../lib/preamble";
+import { salesSessionPreamble } from "../sales/preamble";
 
 /**
  * What this particular session is for.
  *
  * `instructions.md` is the agent's permanent identity and is the same every
  * time. This is the opposite: resolved once per session from whoever started
- * it, so a run dispatched for one contact opens already knowing who they are,
- * what the task is, and what it may spend — instead of spending its first two
- * tool calls finding out.
+ * it, so a run opens already knowing its durable subject, task and budget.
  *
  * Resolved at `session.started` rather than per turn. Prompt caches are keyed
  * on the prompt, so a preamble that changed every turn would re-ingest the
  * whole conversation at uncached prices for information that does not change.
- *
- * The prose itself lives in `lib/preamble.ts` — three records, three different
- * conversations, and a test that says so. This file is the one place that
- * decides *focus*, because seeding it is what lets the audit hook file every
- * event against the right record: a hook sees events, not arguments.
  */
 export default defineDynamic({
 	events: {
@@ -26,8 +20,19 @@ export default defineDynamic({
 			const attributes = ctx.session.auth.current?.attributes ?? {};
 			const budget = asNumber(attributes.budget);
 			const kind = asString(attributes.taskKind);
+			const salesProspectId = asString(attributes.salesProspectId);
 
 			if (budget) setBudget(budget);
+
+			if (salesProspectId) {
+				const sales = await salesSessionPreamble(salesProspectId, {
+					kind,
+					reason: asString(attributes.reason),
+					budget,
+				});
+				focusOn({ ...sales.focus, sessionId: ctx.session.id });
+				return defineInstructions({ markdown: sales.markdown });
+			}
 
 			const { markdown, focus } = await sessionPreamble(
 				{
