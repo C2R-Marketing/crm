@@ -18,6 +18,8 @@ on:
       - "apps/agent/agent/schedules/dispatch.ts"
       - "packages/db/prisma/schema.prisma"
       - "packages/db/prisma/migrations/**"
+      - "docs/product/ai-receptionist/**"
+      - "sales/ai-receptionist/**"
       - ".github/workflows/receptionist-autopilot-ci.yml"
   pull_request:
     paths:
@@ -34,6 +36,8 @@ on:
       - "apps/agent/agent/schedules/dispatch.ts"
       - "packages/db/prisma/schema.prisma"
       - "packages/db/prisma/migrations/**"
+      - "docs/product/ai-receptionist/**"
+      - "sales/ai-receptionist/**"
       - ".github/workflows/receptionist-autopilot-ci.yml"
 
 permissions:
@@ -106,6 +110,18 @@ jobs:
           grep -q "Unknown pricing or availability is intentionally refused" /tmp/ministry-demo.html
           if grep -Eq '\$[0-9]+' /tmp/professional-office-demo.html /tmp/ministry-demo.html; then
             echo "unexpected invented price in generated demo"
+            exit 1
+          fi
+
+      - name: Validate buyer package is generic and owner-gated
+        run: |
+          grep -q 'Founding pilot' sales/ai-receptionist/index.html
+          grep -q '\$497' sales/ai-receptionist/index.html
+          grep -q '\$297/mo' sales/ai-receptionist/index.html
+          grep -q 'Owner approval required before sale' sales/ai-receptionist/index.html
+          grep -q 'not a claim of live PSTN/SIP production readiness' docs/product/ai-receptionist/SELL_TOMORROW_V1.md
+          if grep -Eqi 'roofing|roofer|plumber|dental|law firm|medspa' sales/ai-receptionist/index.html; then
+            echo "buyer package contains a vertical-specific product assumption"
             exit 1
           fi
 
