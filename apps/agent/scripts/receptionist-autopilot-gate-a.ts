@@ -2,16 +2,16 @@ import { db } from "@crm/db";
 import { seedGateAReceptionistRun } from "../agent/sales/gate-a";
 
 const receipt = await seedGateAReceptionistRun({
-  prospectId: "synthetic-northstar-roofing-v1",
-  businessName: "Northstar Roofing.test",
-  website: "https://northstar-roofing.test",
+  prospectId: "synthetic-example-organization-v1",
+  businessName: "Example Organization.test",
+  website: "https://example-organization.test",
   observedFacts: [
-    { field: "businessName", value: "Northstar Roofing.test", evidenceId: "fixture:business-name" },
-    { field: "service", value: "Roof repair", evidenceId: "fixture:service-roof-repair" },
-    { field: "service", value: "Roof inspection", evidenceId: "fixture:service-roof-inspection" },
-    { field: "serviceArea", value: "Example County", evidenceId: "fixture:service-area" },
+    { field: "businessName", value: "Example Organization.test", evidenceId: "fixture:business-name" },
+    { field: "offering", value: "Consultation", evidenceId: "fixture:offering-consultation" },
+    { field: "offering", value: "Appointment", evidenceId: "fixture:offering-appointment" },
+    { field: "location", value: "Example City", evidenceId: "fixture:location" },
     { field: "hours", value: "Mon-Fri 8am-5pm", evidenceId: "fixture:hours" },
-    { field: "faq", value: "Emergency requests are captured for callback.", evidenceId: "fixture:faq-emergency-callback" },
+    { field: "faq", value: "Messages are captured for human follow-up.", evidenceId: "fixture:faq-follow-up" },
   ],
 });
 
