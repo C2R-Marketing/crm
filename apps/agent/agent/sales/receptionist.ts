@@ -1,14 +1,18 @@
 import type { EvidenceValue, ReceptionistDemoSpec } from "./types";
 
 export type ReceptionistTurn =
-  | { kind: "services" }
-  | { kind: "service"; value: string }
+  | { kind: "offerings" }
+  | { kind: "offering"; value: string }
+  | { kind: "location" }
   | { kind: "hours" }
-  | { kind: "service-area" }
   | { kind: "faq"; value?: string }
   | { kind: "price" }
   | { kind: "availability" }
-  | { kind: "other"; value?: string };
+  | { kind: "other"; value?: string }
+  // Backward-compatible intent aliases. These normalize to the generic model.
+  | { kind: "services" }
+  | { kind: "service"; value: string }
+  | { kind: "service-area" };
 
 export type ReceptionistResponse = {
   kind: "answer" | "unknown";
@@ -37,39 +41,53 @@ export function createReceptionistSession(spec: ReceptionistDemoSpec) {
     evidenceIds: [],
   });
 
+  const listOfferings = (): ReceptionistResponse => {
+    if (!spec.offerings.length) return unknown();
+    return {
+      kind: "answer",
+      text: `Verified offerings: ${spec.offerings.map((item) => item.value).join("; ")}.`,
+      evidenceIds: evidence(spec.offerings),
+    };
+  };
+
+  const answerOffering = (value: string): ReceptionistResponse => {
+    const requested = normalized(value);
+    const matched = spec.offerings.find((item) => normalized(item.value) === requested);
+    if (!matched) return unknown();
+    return {
+      kind: "answer",
+      text: `Yes. ${matched.value} is in the verified offering list.`,
+      evidenceIds: [matched.evidenceId],
+    };
+  };
+
+  const answerLocation = (): ReceptionistResponse => {
+    if (!spec.locations.length) return unknown();
+    return {
+      kind: "answer",
+      text: `Verified location or service area: ${spec.locations.map((item) => item.value).join("; ")}.`,
+      evidenceIds: evidence(spec.locations),
+    };
+  };
+
   return {
     respond(turn: ReceptionistTurn): ReceptionistResponse {
       switch (turn.kind) {
+        case "offerings":
         case "services":
-          if (!spec.services.length) return unknown();
-          return {
-            kind: "answer",
-            text: `Verified services: ${spec.services.map((item) => item.value).join("; ")}.`,
-            evidenceIds: evidence(spec.services),
-          };
-        case "service": {
-          const requested = normalized(turn.value);
-          const matched = spec.services.find((item) => normalized(item.value) === requested);
-          if (!matched) return unknown();
-          return {
-            kind: "answer",
-            text: `Yes. ${matched.value} is in the verified service list.`,
-            evidenceIds: [matched.evidenceId],
-          };
-        }
+          return listOfferings();
+        case "offering":
+        case "service":
+          return answerOffering(turn.value);
+        case "location":
+        case "service-area":
+          return answerLocation();
         case "hours":
           if (!spec.hours) return unknown();
           return {
             kind: "answer",
             text: `Verified hours: ${spec.hours.value}.`,
             evidenceIds: [spec.hours.evidenceId],
-          };
-        case "service-area":
-          if (!spec.serviceArea) return unknown();
-          return {
-            kind: "answer",
-            text: `Verified service area: ${spec.serviceArea.value}.`,
-            evidenceIds: [spec.serviceArea.evidenceId],
           };
         case "faq": {
           if (!spec.faqs.length) return unknown();
