@@ -34,7 +34,7 @@ const campaign: CampaignContract = {
 
 const prospect: ProspectEnvelope = {
   id: "prospect-1",
-  companyName: "Fictional Roofing Co",
+  companyName: "Example Organization.test",
   channel: "synthetic",
   consent: "NOT_REQUIRED_SYNTHETIC",
   suppressed: false,
@@ -43,8 +43,8 @@ const prospect: ProspectEnvelope = {
 };
 
 const facts: ObservedFact[] = [
-  { field: "businessName", value: "Fictional Roofing Co", evidenceId: "e1" },
-  { field: "service", value: "Roof repair", evidenceId: "e2" },
+  { field: "businessName", value: "Example Organization.test", evidenceId: "e1" },
+  { field: "offering", value: "Consultation", evidenceId: "e2" },
 ];
 
 const budget: SalesBudget = { maxTokens: 5000, maxCostUsd: 0, tokensUsed: 0, costUsd: 0 };
