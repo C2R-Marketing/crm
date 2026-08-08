@@ -2,23 +2,23 @@
   "facts": [
     {
       "field": "businessName",
-      "value": "Northstar Roofing.test",
+      "value": "Example Professional Office.test",
       "evidenceId": "fixture:business-name"
     },
     {
-      "field": "service",
-      "value": "Roof repair",
-      "evidenceId": "fixture:service-roof-repair"
+      "field": "offering",
+      "value": "Initial consultation",
+      "evidenceId": "fixture:offering-consultation"
     },
     {
-      "field": "service",
-      "value": "Roof inspection",
-      "evidenceId": "fixture:service-roof-inspection"
+      "field": "offering",
+      "value": "Scheduled appointment",
+      "evidenceId": "fixture:offering-appointment"
     },
     {
-      "field": "serviceArea",
-      "value": "Example County",
-      "evidenceId": "fixture:service-area"
+      "field": "location",
+      "value": "Example City",
+      "evidenceId": "fixture:location"
     },
     {
       "field": "hours",
@@ -27,13 +27,13 @@
     },
     {
       "field": "faq",
-      "value": "Emergency requests are captured for callback.",
-      "evidenceId": "fixture:faq-emergency"
+      "value": "After-hours messages are captured for human follow-up.",
+      "evidenceId": "fixture:faq-after-hours"
     }
   ],
   "sampleLead": {
     "name": "Casey Example",
     "callbackNumber": "+1 555 010 0200",
-    "requestSummary": "Leak above the garage"
+    "requestSummary": "I would like to speak with someone about an appointment"
   }
 }
