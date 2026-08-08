@@ -45,8 +45,14 @@ function validateFacts(value: unknown): ObservedFact[] {
   if (!facts.some((fact) => fact.field === "businessName")) {
     fail("an evidence-backed businessName fact is required");
   }
-  if (!facts.some((fact) => ["service", "serviceArea", "hours", "faq"].includes(fact.field))) {
-    fail("at least one receptionist-answerable fact is required (service, serviceArea, hours, or faq)");
+  if (
+    !facts.some((fact) =>
+      ["offering", "location", "hours", "faq", "service", "serviceArea"].includes(fact.field),
+    )
+  ) {
+    fail(
+      "at least one receptionist-answerable fact is required (offering, location, hours, or faq; legacy service/serviceArea are also accepted)",
+    );
   }
   return facts;
 }
@@ -90,16 +96,16 @@ const spec = buildReceptionistDemoSpec(facts, campaign);
 const receptionist = createReceptionistSession(spec);
 
 const turns: ReceptionistTurn[] = [];
-if (spec.services.length) turns.push({ kind: "services" });
+if (spec.offerings.length) turns.push({ kind: "offerings" });
 if (spec.hours) turns.push({ kind: "hours" });
-if (spec.serviceArea) turns.push({ kind: "service-area" });
-if (spec.services[0]) turns.push({ kind: "service", value: spec.services[0].value });
+if (spec.locations.length) turns.push({ kind: "location" });
+if (spec.offerings[0]) turns.push({ kind: "offering", value: spec.offerings[0].value });
 turns.push({ kind: "price" });
 
 const transcript = turns.map((caller) => ({ caller, receptionist: receptionist.respond(caller) }));
 const lead = sampleLead ? receptionist.captureLead(sampleLead) : null;
 const proof = {
-  proofVersion: 1,
+  proofVersion: 2,
   product: "prospect-specific evidence-bounded AI receptionist demo",
   campaignId: campaign.id,
   businessName: spec.businessName,
@@ -109,9 +115,12 @@ const proof = {
   lead,
   assertions: {
     businessNameEvidenceBacked: Boolean(spec.businessNameEvidenceId),
-    answerableFactPresent: Boolean(spec.services.length || spec.hours || spec.serviceArea || spec.faqs.length),
+    answerableFactPresent: Boolean(
+      spec.offerings.length || spec.hours || spec.locations.length || spec.faqs.length,
+    ),
     unknownPriceNotInvented: transcript.some(
-      (turn) => turn.caller.kind === "price" && turn.receptionist.kind === "unknown" && !/\$\d/.test(turn.receptionist.text),
+      (turn) =>
+        turn.caller.kind === "price" && turn.receptionist.kind === "unknown" && !/\$\d/.test(turn.receptionist.text),
     ),
     gateBLocked: campaign.gateBEnabled === false,
     syntheticOnly: campaign.allowedChannels.length === 1 && campaign.allowedChannels[0] === "synthetic",
@@ -145,17 +154,17 @@ if (htmlPath) {
 <title>${escapeHtml(spec.businessName)} — AI Receptionist Demo</title>
 <style>
 body{font-family:system-ui,sans-serif;max-width:860px;margin:0 auto;padding:40px 20px;line-height:1.5;background:#fafafa;color:#111}
-.badge{display:inline-block;padding:6px 10px;border:1px solid #bbb;border-radius:999px;font-size:13px}.turn,section{background:white;border:1px solid #ddd;border-radius:14px;padding:18px;margin:14px 0}.answer{font-size:18px;margin:10px 0}.evidence{font-size:13px;color:#555}button{margin-top:12px;padding:10px 14px;border-radius:8px;border:1px solid #222;background:#111;color:white;cursor:pointer}h1{margin-bottom:6px}.disclosure{color:#555}.unknown{font-style:italic}
+.badge{display:inline-block;padding:6px 10px;border:1px solid #bbb;border-radius:999px;font-size:13px}.turn,section{background:white;border:1px solid #ddd;border-radius:14px;padding:18px;margin:14px 0}.answer{font-size:18px;margin:10px 0}.evidence{font-size:13px;color:#555}button{margin-top:12px;padding:10px 14px;border-radius:8px;border:1px solid #222;background:#111;color:white;cursor:pointer}h1{margin-bottom:6px}.disclosure{color:#555}
 </style>
 </head>
 <body>
 <span class="badge">Gate A · synthetic/no-contact demo</span>
 <h1>${escapeHtml(spec.businessName)} AI Receptionist Demo</h1>
 <p class="disclosure">${escapeHtml(spec.disclosure)}</p>
-<p>This page is generated only from evidence-backed business facts. Unknown pricing or availability is intentionally refused rather than invented.</p>
+<p>This page is generated only from evidence-backed organization facts. Unknown pricing or availability is intentionally refused rather than invented.</p>
 ${transcriptHtml}
 ${leadHtml}
-<section><h2>What this proves</h2><ul><li>Business answers cite source evidence IDs.</li><li>Unknown details fail closed.</li><li>A callback lead can be captured.</li><li>No real call, message, booking, charge, or paid inference occurs in this demo.</li></ul></section>
+<section><h2>What this proves</h2><ul><li>Answers cite source evidence IDs.</li><li>Unknown details fail closed.</li><li>A callback lead can be captured.</li><li>No real call, message, booking, charge, or paid inference occurs in this demo.</li></ul></section>
 </body>
 </html>`;
   await Bun.write(htmlPath, html);
