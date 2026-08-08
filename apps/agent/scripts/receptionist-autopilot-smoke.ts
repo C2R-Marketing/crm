@@ -35,19 +35,19 @@ const campaign: CampaignContract = {
 };
 
 const prospect: ProspectEnvelope = {
-  id: "synthetic-roofer-001",
-  companyName: "Northstar Roofing.test",
+  id: "synthetic-organization-001",
+  companyName: "Example Organization.test",
   channel: "synthetic",
   consent: "NOT_REQUIRED_SYNTHETIC",
   suppressed: false,
   optedOut: false,
-  evidenceIds: ["fixture:synthetic-roofer-001"],
+  evidenceIds: ["fixture:synthetic-organization-001"],
 };
 
 const facts: ObservedFact[] = [
-  { field: "businessName", value: "Northstar Roofing.test", evidenceId: "fixture:business-name" },
-  { field: "service", value: "Roof repair", evidenceId: "fixture:service-roof-repair" },
-  { field: "serviceArea", value: "Example County", evidenceId: "fixture:service-area" },
+  { field: "businessName", value: "Example Organization.test", evidenceId: "fixture:business-name" },
+  { field: "offering", value: "Consultation", evidenceId: "fixture:offering-consultation" },
+  { field: "location", value: "Example City", evidenceId: "fixture:location" },
   { field: "hours", value: "Mon-Fri 8am-5pm", evidenceId: "fixture:hours" },
 ];
 
@@ -67,7 +67,7 @@ const adapter = new SyntheticSalesAdapter([
 const receipt = await runSalesProspect({ campaign, prospect, facts, claims: offer.claims, budget, adapter });
 
 const proof = {
-  proofVersion: 2,
+  proofVersion: 3,
   fixture: prospect.id,
   campaignContract: campaignConfig.id,
   receipt,
