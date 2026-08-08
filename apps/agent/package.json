@@ -11,6 +11,10 @@
 		"check-types": "tsc --noEmit",
 		"test": "bun test",
 		"lint": "biome check .",
+		"receptionist:demo": "bun scripts/receptionist-demo-smoke.ts",
+		"receptionist:prospect-demo": "bun scripts/receptionist-autopilot-prospect-demo.ts",
+		"receptionist:sales-proof": "bun scripts/receptionist-autopilot-smoke.ts",
+		"receptionist:gate-a": "bun scripts/receptionist-autopilot-gate-a.ts",
 		"clean": "rm -rf .turbo .eve node_modules"
 	},
 	"dependencies": {

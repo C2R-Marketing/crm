@@ -1,0 +1,39 @@
+{
+  "facts": [
+    {
+      "field": "businessName",
+      "value": "Example Community Ministry.test",
+      "evidenceId": "fixture:ministry:name"
+    },
+    {
+      "field": "offering",
+      "value": "Weekly gathering",
+      "evidenceId": "fixture:ministry:gathering"
+    },
+    {
+      "field": "offering",
+      "value": "Bible study",
+      "evidenceId": "fixture:ministry:study"
+    },
+    {
+      "field": "location",
+      "value": "100 Example Street, Example City",
+      "evidenceId": "fixture:ministry:location"
+    },
+    {
+      "field": "hours",
+      "value": "Office hours Tue-Fri 9am-3pm",
+      "evidenceId": "fixture:ministry:hours"
+    },
+    {
+      "field": "faq",
+      "value": "New visitors may leave a callback request for the ministry office.",
+      "evidenceId": "fixture:ministry:faq"
+    }
+  ],
+  "sampleLead": {
+    "name": "Jordan Example",
+    "callbackNumber": "+1 555 010 0300",
+    "requestSummary": "I have a question about visiting this week"
+  }
+}

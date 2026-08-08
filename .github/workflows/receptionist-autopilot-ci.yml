@@ -1,0 +1,142 @@
+name: Receptionist Revenue Autopilot CI
+
+on:
+  push:
+    branches:
+      - feat/receptionist-revenue-autopilot-v1
+    paths:
+      - "apps/agent/package.json"
+      - "apps/agent/agent/sales/**"
+      - "apps/agent/agent/tools/sales_*.ts"
+      - "apps/agent/test/sales/**"
+      - "apps/agent/test/fixtures/**"
+      - "apps/agent/scripts/receptionist-autopilot-*.ts"
+      - "apps/agent/scripts/receptionist-demo-smoke.ts"
+      - "apps/agent/agent/channels/crm.ts"
+      - "apps/agent/agent/instructions/task.ts"
+      - "apps/agent/agent/lib/tasks.ts"
+      - "apps/agent/agent/schedules/dispatch.ts"
+      - "packages/db/prisma/schema.prisma"
+      - "packages/db/prisma/migrations/**"
+      - "docs/product/ai-receptionist/**"
+      - "sales/ai-receptionist/**"
+      - ".github/workflows/receptionist-autopilot-ci.yml"
+  pull_request:
+    paths:
+      - "apps/agent/package.json"
+      - "apps/agent/agent/sales/**"
+      - "apps/agent/agent/tools/sales_*.ts"
+      - "apps/agent/test/sales/**"
+      - "apps/agent/test/fixtures/**"
+      - "apps/agent/scripts/receptionist-autopilot-*.ts"
+      - "apps/agent/scripts/receptionist-demo-smoke.ts"
+      - "apps/agent/agent/channels/crm.ts"
+      - "apps/agent/agent/instructions/task.ts"
+      - "apps/agent/agent/lib/tasks.ts"
+      - "apps/agent/agent/schedules/dispatch.ts"
+      - "packages/db/prisma/schema.prisma"
+      - "packages/db/prisma/migrations/**"
+      - "docs/product/ai-receptionist/**"
+      - "sales/ai-receptionist/**"
+      - ".github/workflows/receptionist-autopilot-ci.yml"
+
+permissions:
+  contents: read
+
+env:
+  DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/crm_ci
+
+jobs:
+  sales-core:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: crm_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d crm_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node required by Eve
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.12
+
+      - name: Install locked dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Apply database migrations to disposable Postgres
+        run: cd packages/db && bun run db:deploy
+
+      - name: Run sales product tests
+        run: bun test apps/agent/test/sales
+
+      - name: Run packaged synthetic sale proof
+        run: bun run --filter=agent receptionist:sales-proof
+
+      - name: Run packaged callable receptionist demo proof
+        run: bun run --filter=agent receptionist:demo
+
+      - name: Generate unrelated prospect demos from the same product code
+        run: |
+          bun run --filter=agent receptionist:prospect-demo test/fixtures/receptionist-prospect-demo.json --html /tmp/professional-office-demo.html
+          bun run --filter=agent receptionist:prospect-demo test/fixtures/receptionist-prospect-demo-ministry.json --html /tmp/ministry-demo.html
+
+      - name: Prove generated demos are cross-vertical and evidence-bounded
+        run: |
+          grep -q "Example Professional Office.test AI Receptionist Demo" /tmp/professional-office-demo.html
+          grep -q "Example Community Ministry.test AI Receptionist Demo" /tmp/ministry-demo.html
+          grep -q "Verified offerings: Initial consultation; Scheduled appointment." /tmp/professional-office-demo.html
+          grep -q "Verified offerings: Weekly gathering; Bible study." /tmp/ministry-demo.html
+          grep -q "Unknown pricing or availability is intentionally refused" /tmp/professional-office-demo.html
+          grep -q "Unknown pricing or availability is intentionally refused" /tmp/ministry-demo.html
+          if grep -Eq '\$[0-9]+' /tmp/professional-office-demo.html /tmp/ministry-demo.html; then
+            echo "unexpected invented price in generated demo"
+            exit 1
+          fi
+
+      - name: Validate buyer package is generic and owner-gated
+        run: |
+          grep -q 'Founding pilot' sales/ai-receptionist/index.html
+          grep -q '\$497' sales/ai-receptionist/index.html
+          grep -q '\$297/mo' sales/ai-receptionist/index.html
+          grep -q 'Owner approval required before sale' sales/ai-receptionist/index.html
+          grep -q 'It does NOT prove live PSTN/SIP/telephony' docs/product/ai-receptionist/SELL_TOMORROW_V1.md
+          if grep -Eqi 'roofing|roofer|plumber|dental|law firm|medspa' sales/ai-receptionist/index.html; then
+            echo "buyer package contains a vertical-specific product assumption"
+            exit 1
+          fi
+
+      - name: Run packaged Gate A product trigger twice
+        run: |
+          bun run --filter=agent receptionist:gate-a
+          bun run --filter=agent receptionist:gate-a
+
+      - name: Prove Gate A trigger stayed idempotent
+        run: |
+          row="$(psql "$DATABASE_URL" -Atc "select count(*) || ':' || (select count(*) from \"agentTask\" where \"salesProspectId\"='synthetic-example-organization-v1' and \"finishedAt\" is null) from \"salesProspect\" where id='synthetic-example-organization-v1';")"
+          test "$row" = "1:1"
+
+      - name: Type-check agent
+        run: bun run --filter=agent check-types
+
+      - name: Compile the Eve agent and discover authored sales tools
+        run: bun run --filter=agent build
