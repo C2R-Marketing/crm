@@ -9,6 +9,7 @@ on:
       - "apps/agent/agent/sales/**"
       - "apps/agent/agent/tools/sales_*.ts"
       - "apps/agent/test/sales/**"
+      - "apps/agent/test/fixtures/**"
       - "apps/agent/scripts/receptionist-autopilot-*.ts"
       - "apps/agent/scripts/receptionist-demo-smoke.ts"
       - "apps/agent/agent/channels/crm.ts"
@@ -24,6 +25,7 @@ on:
       - "apps/agent/agent/sales/**"
       - "apps/agent/agent/tools/sales_*.ts"
       - "apps/agent/test/sales/**"
+      - "apps/agent/test/fixtures/**"
       - "apps/agent/scripts/receptionist-autopilot-*.ts"
       - "apps/agent/scripts/receptionist-demo-smoke.ts"
       - "apps/agent/agent/channels/crm.ts"
@@ -88,6 +90,21 @@ jobs:
 
       - name: Run packaged callable receptionist demo proof
         run: bun run --filter=agent receptionist:demo
+
+      - name: Generate a prospect-specific evidence demo
+        run: >-
+          bun run --filter=agent receptionist:prospect-demo
+          test/fixtures/receptionist-prospect-demo.json
+          --html /tmp/receptionist-prospect-demo.html
+
+      - name: Verify generated prospect demo stays evidence-bounded
+        run: |
+          grep -q "Northstar Roofing.test AI Receptionist Demo" /tmp/receptionist-prospect-demo.html
+          grep -q "Unknown pricing or availability is intentionally refused" /tmp/receptionist-prospect-demo.html
+          if grep -Eq '\$[0-9]+' /tmp/receptionist-prospect-demo.html; then
+            echo "unexpected invented price in generated demo"
+            exit 1
+          fi
 
       - name: Run packaged Gate A product trigger twice
         run: |
