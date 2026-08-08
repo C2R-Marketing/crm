@@ -119,7 +119,7 @@ jobs:
           grep -q '\$497' sales/ai-receptionist/index.html
           grep -q '\$297/mo' sales/ai-receptionist/index.html
           grep -q 'Owner approval required before sale' sales/ai-receptionist/index.html
-          grep -q 'not a claim of live PSTN/SIP production readiness' docs/product/ai-receptionist/SELL_TOMORROW_V1.md
+          grep -q 'It does NOT prove live PSTN/SIP/telephony' docs/product/ai-receptionist/SELL_TOMORROW_V1.md
           if grep -Eqi 'roofing|roofer|plumber|dental|law firm|medspa' sales/ai-receptionist/index.html; then
             echo "buyer package contains a vertical-specific product assumption"
             exit 1
