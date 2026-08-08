@@ -1,0 +1,39 @@
+{
+  "facts": [
+    {
+      "field": "businessName",
+      "value": "Northstar Roofing.test",
+      "evidenceId": "fixture:business-name"
+    },
+    {
+      "field": "service",
+      "value": "Roof repair",
+      "evidenceId": "fixture:service-roof-repair"
+    },
+    {
+      "field": "service",
+      "value": "Roof inspection",
+      "evidenceId": "fixture:service-roof-inspection"
+    },
+    {
+      "field": "serviceArea",
+      "value": "Example County",
+      "evidenceId": "fixture:service-area"
+    },
+    {
+      "field": "hours",
+      "value": "Mon-Fri 8am-5pm",
+      "evidenceId": "fixture:hours"
+    },
+    {
+      "field": "faq",
+      "value": "Emergency requests are captured for callback.",
+      "evidenceId": "fixture:faq-emergency"
+    }
+  ],
+  "sampleLead": {
+    "name": "Casey Example",
+    "callbackNumber": "+1 555 010 0200",
+    "requestSummary": "Leak above the garage"
+  }
+}
