@@ -13,9 +13,9 @@ async function cleanup() {
 
 const fixture = {
   prospectId,
-  businessName: "Northstar Roofing.test",
-  website: "https://northstar-roofing.test",
-  observedFacts: [{ field: "service", value: "Roof repair", evidenceId: "fixture:service" }],
+  businessName: "Example Organization.test",
+  website: "https://example-organization.test",
+  observedFacts: [{ field: "offering", value: "Consultation", evidenceId: "fixture:offering" }],
 };
 
 beforeEach(cleanup);
@@ -29,7 +29,7 @@ describe("Gate A receptionist product trigger", () => {
     const input = {
       ...fixture,
       observedFacts: [
-        { field: "service", value: "Roof repair", evidenceId: "fixture:roof-repair" },
+        { field: "offering", value: "Consultation", evidenceId: "fixture:consultation" },
         { field: "hours", value: "Mon-Fri 8am-5pm", evidenceId: "fixture:hours" },
       ],
     };
@@ -83,13 +83,13 @@ describe("Gate A receptionist product trigger", () => {
 
   test("refuses a non-.test website so Gate A cannot accidentally seed a real prospect", async () => {
     await expect(
-      seedGateAReceptionistRun({ ...fixture, businessName: "Real Roofing", website: "https://example.com" }),
+      seedGateAReceptionistRun({ ...fixture, businessName: "Real Organization", website: "https://example.com" }),
     ).rejects.toThrow("Gate A requires a reserved .test synthetic website");
   });
 
   test("requires evidence-backed observed facts", async () => {
     await expect(
-      seedGateAReceptionistRun({ ...fixture, observedFacts: [{ field: "service", value: "Roof repair", evidenceId: "" }] }),
+      seedGateAReceptionistRun({ ...fixture, observedFacts: [{ field: "offering", value: "Consultation", evidenceId: "" }] }),
     ).rejects.toThrow("every observed fact requires an evidenceId");
   });
 });
