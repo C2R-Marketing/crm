@@ -15,7 +15,7 @@ const campaign: CampaignContract = {
 
 const prospect: ProspectEnvelope = {
   id: "prospect-1",
-  companyName: "Fictional Roofing Co",
+  companyName: "Example Organization.test",
   channel: "synthetic",
   consent: "NOT_REQUIRED_SYNTHETIC",
   suppressed: false,
