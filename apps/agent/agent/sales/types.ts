@@ -86,7 +86,19 @@ export interface SalesBudget {
   costUsd: number;
 }
 
-export type ObservedFactField = "businessName" | "service" | "serviceArea" | "hours" | "faq" | string;
+/**
+ * Canonical demo fields are business-agnostic. `service` and `serviceArea` remain
+ * accepted as legacy input aliases so older evidence packets do not break.
+ */
+export type ObservedFactField =
+  | "businessName"
+  | "offering"
+  | "location"
+  | "hours"
+  | "faq"
+  | "service"
+  | "serviceArea"
+  | string;
 
 export interface ObservedFact {
   field: ObservedFactField;
@@ -103,8 +115,8 @@ export interface ReceptionistDemoSpec {
   campaignId: string;
   businessName: string;
   businessNameEvidenceId: string | null;
-  services: EvidenceValue[];
-  serviceArea: EvidenceValue | null;
+  offerings: EvidenceValue[];
+  locations: EvidenceValue[];
   hours: EvidenceValue | null;
   faqs: EvidenceValue[];
   leadCaptureFields: string[];
