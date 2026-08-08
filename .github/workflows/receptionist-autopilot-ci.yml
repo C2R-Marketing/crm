@@ -91,17 +91,20 @@ jobs:
       - name: Run packaged callable receptionist demo proof
         run: bun run --filter=agent receptionist:demo
 
-      - name: Generate a prospect-specific evidence demo
-        run: >-
-          bun run --filter=agent receptionist:prospect-demo
-          test/fixtures/receptionist-prospect-demo.json
-          --html /tmp/receptionist-prospect-demo.html
-
-      - name: Verify generated prospect demo stays evidence-bounded
+      - name: Generate unrelated prospect demos from the same product code
         run: |
-          grep -q "Northstar Roofing.test AI Receptionist Demo" /tmp/receptionist-prospect-demo.html
-          grep -q "Unknown pricing or availability is intentionally refused" /tmp/receptionist-prospect-demo.html
-          if grep -Eq '\$[0-9]+' /tmp/receptionist-prospect-demo.html; then
+          bun run --filter=agent receptionist:prospect-demo test/fixtures/receptionist-prospect-demo.json --html /tmp/professional-office-demo.html
+          bun run --filter=agent receptionist:prospect-demo test/fixtures/receptionist-prospect-demo-ministry.json --html /tmp/ministry-demo.html
+
+      - name: Prove generated demos are cross-vertical and evidence-bounded
+        run: |
+          grep -q "Example Professional Office.test AI Receptionist Demo" /tmp/professional-office-demo.html
+          grep -q "Example Community Ministry.test AI Receptionist Demo" /tmp/ministry-demo.html
+          grep -q "Verified offerings: Initial consultation; Scheduled appointment." /tmp/professional-office-demo.html
+          grep -q "Verified offerings: Weekly gathering; Bible study." /tmp/ministry-demo.html
+          grep -q "Unknown pricing or availability is intentionally refused" /tmp/professional-office-demo.html
+          grep -q "Unknown pricing or availability is intentionally refused" /tmp/ministry-demo.html
+          if grep -Eq '\$[0-9]+' /tmp/professional-office-demo.html /tmp/ministry-demo.html; then
             echo "unexpected invented price in generated demo"
             exit 1
           fi
@@ -113,7 +116,7 @@ jobs:
 
       - name: Prove Gate A trigger stayed idempotent
         run: |
-          row="$(psql "$DATABASE_URL" -Atc "select count(*) || ':' || (select count(*) from \"agentTask\" where \"salesProspectId\"='synthetic-northstar-roofing-v1' and \"finishedAt\" is null) from \"salesProspect\" where id='synthetic-northstar-roofing-v1';")"
+          row="$(psql "$DATABASE_URL" -Atc "select count(*) || ':' || (select count(*) from \"agentTask\" where \"salesProspectId\"='synthetic-example-organization-v1' and \"finishedAt\" is null) from \"salesProspect\" where id='synthetic-example-organization-v1';")"
           test "$row" = "1:1"
 
       - name: Type-check agent
